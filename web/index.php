@@ -1,0 +1,213 @@
+<?
+
+
+
+
+
+
+
+//http://test_sql_pap.comli.com/?cmd=regist&username=pup&pswd=puppo&mail=pup@mail.ru&age=1999-12-31&phone=98098098&statuswork=processing&credit=1890
+if(count($_GET)!=0 || count($_POST)!=0){
+    $action = $_GET['cmd'];
+    switch($action){
+
+        case 'check':
+            $username = str_replace(array("\\","\""),array(""),$_GET['username']);
+            $pswd = str_replace(array("\\","\""),array(""),$_GET['pswd']);
+
+            $query = "SELECT * FROM User WHERE email='$username' AND password='$pswd';";
+            $result = get_Query($query);
+            $json= false;
+            if(!empty($result)){
+                while($row = mysql_fetch_row($result)){
+                    if(!empty($row)){
+                        $ar =  array(
+                            'id' =>$row[0],
+                            'name' =>$row[1],
+                            'password' =>$row[2],
+                            'mail' =>$row[3],
+                            'age' =>$row[4],
+                            'phone'=>$row[5],
+                            'statuswork'=>$row[6],
+                            'payday'=>$row[7],
+                            'total' =>$row[8],
+                            'credit' =>$row[9],
+                            'message' =>$row[10],
+                            'picpath' =>$row[11]
+                        );
+                        $mes = get_Messages($ar['id']);
+                        $json= array('response'=>array('profile'=>array($ar),'messages'=>$mes));
+                    }
+                }
+                echo json_encode($json);
+            }
+            break;
+
+        case 'regist':
+            $username   = str_replace(array("\\","\""),array(""),$_GET['username']);
+            $pswd       = str_replace(array("\\","\""),array(""),$_GET['pswd']);
+            $mail       = str_replace(array("\\","\""),array(""),$_GET['mail']);
+            $age        = str_replace(array("\\","\""),array(""),$_GET['age']);
+            $pic        = str_replace(array("\\","\""),array(""),$_GET['pic']);
+            $phone      = str_replace(array("\\","\""),array(""),$_GET['phone']);
+            $statuswork = str_replace(array("\\","\""),array(""),$_GET['statuswork']);
+            $credit     = str_replace(array("\\","\""),array(""),$_GET['credit']);
+
+
+            if((empty($username)&&empty($pswd)&&empty($mail)&&empty($age)&&empty($phone)&&empty($statuswork)&&empty($credit)) ==false ){
+
+                $json =check_user($username,$mail,$phone,$credit);
+
+                if(empty($json)){
+                    $query      ="INSERT INTO User(`name`,`password`,`email`,`phone`,`statuswork`,`credit`)VALUES('$username','$pswd','$mail','$phone','$statuswork','$credit')";
+                    $result = get_Query($query);
+                    $json['valid']= "true";
+                }
+                else{
+                    $json['valid']= "false";
+                }
+            }
+            $json= array('response'=>array('profile'=>array($json)));
+            echo json_encode($json);
+            break;
+
+        case 'full_info':
+            $username = str_replace(array("\\","\""),array(""),$_GET['username']);
+            $pswd = str_replace(array("\\","\""),array(""),$_GET['pswd']);
+            $json= false;
+            if($username =='admin' && $pswd == 'admin'){
+                $query = "SELECT * FROM User";
+                $result = get_Query($query);
+                $data  =  array();
+                if(!empty($result)){
+                    while($row = mysql_fetch_row($result)){
+                        if(!empty($row)){
+                            $ar =  array(
+                                'id' =>$row[0],
+                                'name' =>$row[1],
+                                'password' =>$row[2],
+                                'mail' =>$row[3],
+                                'age' =>$row[4],
+                                'phone'=>$row[5],
+                                'statuswork'=>$row[6],
+                                'payday'=>$row[7],
+                                'total' =>$row[8],
+                                'credit' =>$row[9],
+                                'message' =>$row[10],
+                                'picpath' =>$row[11]
+                            );
+                            $ar['message']=get_Messages($ar['id']);
+
+                            array_push($data,$ar);
+                        }
+                    }
+                    $json= array('response'=>array('profile'=>$data));
+                }
+                echo json_encode($json);
+            }
+            break;
+
+        case 'send_mes':
+            $userFrom = str_replace(array("\\","\""),array(""),$_GET['userFrom']);
+            $userTo = str_replace(array("\\","\""),array(""),$_GET['userTo']);
+            $pswd  =str_replace(array("\\","\""),array(""),$_GET['pswd']);
+            $message  =str_replace(array("\\","\""),array(""),$_GET['message']);
+            //echo "$userFrom<br>$userTo<br>$pswd<br>$message";
+            set_Messages($userFrom,$userTo,$pswd,$message);
+            break;
+
+        case 'date_pick':
+            $userTo = str_replace(array("\\","\""),array(""),$_GET['userTo']);
+            $date = str_replace(array("\\","\""),array(""),$_GET['date']);
+            update_date($userTo,$date);
+            break;
+    }
+}
+
+function get_Query($query){
+
+    $conn = get_Connection();
+    //$result = "";
+    if(!empty($conn)){
+        $result = mysql_query($query);
+        if(!$result){+
+        die('Could not get data: ' . mysql_error());
+        }
+    }
+
+    mysql_close($conn);
+    return $result;
+}
+function get_Messages($userId){
+    $query = "SELECT Messages.message, Messages.email_id_from From Messages WHERE Messages.email_id = $userId";
+    // echo $query;
+    $result = get_Query($query);
+    $result2 = get_Query($query);
+    if(!empty($result)){
+        $ar =  array();
+        while($row = mysql_fetch_row($result)){
+            //print_r($row);
+            if(!empty($row)){
+
+                $query = "SELECT name From User WHERE id = $row[1]";
+                $result2 = get_Query($query);
+                $row2 = mysql_fetch_array($result2);
+                array_push($ar,array('id'=> $userId,'message'=> $row[0],'name'=>$row2[0]));
+            }
+        }
+    }
+    return $ar;
+}
+function set_Messages($userFrom,$userTo,$pswd,$message){
+
+    $query = "SELECT * FROM User WHERE id='$userFrom' AND password='$pswd';";
+    $result = get_Query($query);
+    //echo "<br> have such user<br>";
+    if(!empty($result)){
+        $sql = "INSERT INTO Messages(message, email_id,email_id_from) VALUES('$message',$userTo,$userFrom);";
+        //echo "<br>$sql<br>";
+        get_Query($sql);
+        //echo "<br>get_last<br>";
+        $sql = "SELECT MAX(id) FROM Messages;";
+        $result = get_Query($sql);
+        $row  = mysql_fetch_row($result);
+        //echo "<br><br>";
+        // print_r($row);
+        $sql  ="UPDATE User SET message = $row[0] WHERE id= $userTo;";
+        //echo $sql."<br>";
+        get_Query($sql);
+    }
+}
+
+function get_Connection(){
+    $host = "localhost";
+    $username = "root";
+    $password = "root";
+    $database = "a4998989_test";
+
+    $conn = mysql_connect($host, $username, $password);
+    if(! $conn ) die('Could not connect: ' . mysql_error());
+    else{
+        mysql_select_db($database);
+    }
+
+    return $conn;
+}
+function check_user($name,$mail,$phone,$credit){
+    $json    = array();
+    $query   ="SELECT name FROM User WHERE name ='$name'";
+    $res   = get_Query($query);
+    $row = mysql_fetch_row($res);
+
+    if(!empty($row[0]))
+        $json['name'] = $row[0];
+    return $json;
+}
+
+function update_date($userTo,$date){
+    $query = "UPDATE User SET PayDay='$date' WHERE id=$userTo;";
+    get_Query($query);
+}
+
+?>
+`

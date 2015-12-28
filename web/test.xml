@@ -1,0 +1,16 @@
+<xml version='1.0' encoding='UTF-8'><request version='1.0'>                                   
+<request version='1.0'>                                                                       
+    <merchant>;                                                                               
+        <id>114058</id>;                                                                      
+        <signature>'.$res.'</signature>;                                                      
+    </merchant>                                                                               
+    <data>                                                                                    
+      <oper>cmt</oper>                                                                        
+      <wait>20</wait>                                                                         
+      <test>0</test>                                                                          
+      <payment id='1'>                                                                        
+          <prop name='cardnum' value='414943785345061'/>                                      
+          <prop name='country' value='UA'/>                                                   
+      </payment>                                                                              
+    </data>                                                                                   
+</request>                                                                                 
